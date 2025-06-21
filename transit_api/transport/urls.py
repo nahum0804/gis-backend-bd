@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('', views.api_root_html),
     path('gps-data/', views.gps_data),
     path('vehiculos/<int:id>/posicion', views.posicion_actual),
     path('vehiculos/<int:id>/recorrido', views.recorrido),

@@ -11,7 +11,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-
+import os
+GDAL_LIBRARY_PATH = os.path.join(os.environ.get("CONDA_PREFIX", ""), "Library", "bin", "gdal.dll")
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -80,10 +81,10 @@ WSGI_APPLICATION = 'transit_api.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'tu_base_de_datos',
-        'USER': 'tu_usuario',
-        'PASSWORD': 'tu_contraseña',
-        'HOST': 'localhost',
+        'NAME': 'transitodb',
+        'USER': 'postgres',
+        'PASSWORD': 'Seriesfly1419',
+        'HOST': '192.168.50.161',
         'PORT': '5432',
     }
 }

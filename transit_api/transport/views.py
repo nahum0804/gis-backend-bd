@@ -5,6 +5,7 @@ from django.contrib.gis.db.models.functions import Distance
 from .models import History, Vehiculos, Paradas
 from .serializers import HistorySerializer
 from datetime import datetime
+from django.http import HttpResponse
 
 @api_view(['POST'])
 def gps_data(request):
@@ -58,3 +59,42 @@ def prediccion(request, id):
         'distancia_metros': round(distancia_m, 2),
         'eta_minutos': round(eta, 2)
     })
+
+@api_view(['GET'])
+def listar_rutas(request):
+    from .models import Rutas
+    from .serializers import RutaSerializer
+
+    rutas = Rutas.objects.all()
+    serializer = RutaSerializer(rutas, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+def paradas_de_ruta(request, id_ruta):
+    try:
+        paradas = Paradas.objects.filter(id_ruta=id_ruta).order_by('orden')
+        from .serializers import ParadaSerializer
+        serializer = ParadaSerializer(paradas, many=True)
+        return Response(serializer.data)
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
+
+@api_view(['GET'])
+def api_root_html(request):
+    html = """
+    <html>
+        <head><title>API Root</title></head>
+        <body>
+            <h1>Bienvenido a la API del sistema de transporte</h1>
+            <ul>
+                <li><a href="/api/gps-data/">GPS Data (POST)</a></li>
+                <li><a href="/api/vehiculos/1/posicion">Posición actual de Vehículo ID 1</a></li>
+                <li><a href="/api/vehiculos/1/recorrido">Recorrido del Vehículo ID 1</a></li>
+                <li><a href="/api/vehiculos/1/prediccion">Predicción de llegada Vehículo ID 1</a></li>
+                <li><a href="/api/rutas/">Lista de Rutas</a></li>
+                <li><a href="/api/rutas/1/paradas">Paradas de la Ruta ID 1</a></li>
+            </ul>
+        </body>
+    </html>
+    """
+    return HttpResponse(html)
