@@ -1,49 +1,60 @@
-from django.shortcuts import render
-
-# Create your views here.
-from rest_framework.views import APIView
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework import status
+from django.contrib.gis.geos import Point
+from django.contrib.gis.db.models.functions import Distance
+from .models import History, Vehiculos, Paradas
+from .serializers import HistorySerializer
+from datetime import datetime
 
-roads_data = {
-    'type': 'FeatureCollection',
-    'features': [
-        {
-            'type': 'Feature',
-            'geometry': {
-                'type': 'LineString',
-                'coordinates': [
-                    [-84.0907, 9.9281],  # Cerca del Parque Central, SJ
-                    [-84.0885, 9.9290],
-                    [-84.0850, 9.9300],
-                ]
-            },
-            'properties': {'f1': 1, 'f2': 'Ruta SJ Centro - Avenida Central'}
-        },
-        {
-            'type': 'Feature',
-            'geometry': {
-                'type': 'LineString',
-                'coordinates': [
-                    [-84.0787, 9.9370],  # Barrio Amón
-                    [-84.0765, 9.9380],
-                    [-84.0740, 9.9390],
-                ]
-            },
-            'properties': {'f1': 2, 'f2': 'Ruta Barrio Amón - Paseo Colón'}
-        },
-    ]
-}
+@api_view(['POST'])
+def gps_data(request):
+    try:
+        vehiculo_id = request.data['id_vehiculo']
+        lat = float(request.data['lat'])
+        lon = float(request.data['lon'])
+        timestamp = request.data.get('timestamp', datetime.now())
 
-vehicles_data = [
-  {'id':'bus-001','lat':10.362,'lng':-84.511,'routeId':1,'timestamp':'2025-06-19T12:00:00Z'},
-  {'id':'bus-002','lat':10.360,'lng':-84.509,'routeId':1,'timestamp':'2025-06-19T12:00:05Z'},
-]
+        punto = Point(lon, lat)
+        History.objects.create(id_vehiculo_id=vehiculo_id, geom=punto, timestamp=timestamp)
 
-class RoadsView(APIView):
-    def get(self, request):
-        return Response(roads_data, status=status.HTTP_200_OK)
+        return Response({'status': 'ok'})
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
 
-class VehiclesView(APIView):
-    def get(self, request):
-        return Response(vehicles_data, status=status.HTTP_200_OK)
+@api_view(['GET'])
+def posicion_actual(request, id):
+    last = History.objects.filter(id_vehiculo=id).order_by('-timestamp').first()
+    if not last:
+        return Response({'error': 'Vehículo no encontrado'}, status=404)
+    return Response({
+        'vehiculo_id': id,
+        'lat': last.geom.y,
+        'lon': last.geom.x,
+        'timestamp': last.timestamp
+    })
+
+@api_view(['GET'])
+def recorrido(request, id):
+    historial = History.objects.filter(id_vehiculo=id).order_by('timestamp')
+    return Response(HistorySerializer(historial, many=True).data)
+
+@api_view(['GET'])
+def prediccion(request, id):
+    ultimo = History.objects.filter(id_vehiculo=id).order_by('-timestamp').first()
+    if not ultimo:
+        return Response({'error': 'Sin posición'}, status=404)
+
+    parada = Paradas.objects.annotate(
+        distancia=Distance('geom', ultimo.geom)
+    ).order_by('distancia').first()
+
+    distancia_m = ultimo.geom.distance(parada.geom) * 111000  # aprox
+    velocidad = 30  # km/h
+    eta = distancia_m / (velocidad * 1000 / 60)
+
+    return Response({
+        'vehiculo_id': id,
+        'parada_objetivo': parada.nombre,
+        'distancia_metros': round(distancia_m, 2),
+        'eta_minutos': round(eta, 2)
+    })
