@@ -81,13 +81,15 @@ WSGI_APPLICATION = 'transit_api.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'transitodb',
+        'NAME': 'proyectoIII',
         'USER': 'postgres',
-        'PASSWORD': 'Seriesfly1419',
-        'HOST': '192.168.50.161',
+        'PASSWORD': '1234',
+        'HOST': '192.168.1.79',
         'PORT': '5432',
+        'application_name': 'transit_api',
     }
 }
+
 
 
 # Password validation
@@ -130,3 +132,8 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',   
+    'http://127.0.0.1:5173',
+]

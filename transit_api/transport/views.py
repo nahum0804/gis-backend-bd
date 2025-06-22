@@ -78,6 +78,38 @@ def paradas_de_ruta(request, id_ruta):
         return Response(serializer.data)
     except Exception as e:
         return Response({'error': str(e)}, status=400)
+    
+@api_view(['GET'])
+def listar_vehiculos(request):
+    data = []
+    for v in Vehiculos.objects.all():
+        last = (
+            History.objects
+            .filter(id_vehiculo_id=v.id_vehiculo)
+            .order_by('-timestamp')
+            .first()
+        )
+        if last:
+            lat = last.geom.y
+            lon = last.geom.x
+            ts  = last.timestamp
+        else:
+            lat = v.geom.y
+            lon = v.geom.x
+            ts  = None
+
+        data.append({
+            'id': v.id_vehiculo,
+            'placa': v.placa,
+            'tipo': v.tipo,
+            'estado': v.estado,
+            'routeId': v.id_ruta_id,
+            'lat': lat,
+            'lng': lon,
+            'timestamp': ts,
+        })
+
+    return Response(data)
 
 @api_view(['GET'])
 def api_root_html(request):
