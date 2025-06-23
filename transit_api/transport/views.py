@@ -40,25 +40,32 @@ def recorrido(request, id):
     return Response(HistorySerializer(historial, many=True).data)
 
 @api_view(['GET'])
-def prediccion(request, id):
-    ultimo = History.objects.filter(id_vehiculo=id).order_by('-timestamp').first()
-    if not ultimo:
-        return Response({'error': 'Sin posición'}, status=404)
+def prediccion(request, vehiculo_id, parada_id):
+    try:
+        veh = Vehiculos.objects.get(id_vehiculo=vehiculo_id)
+    except Vehiculos.DoesNotExist:
+        return Response({'error': 'Vehículo no encontrado'}, status=404)
 
-    parada = Paradas.objects.annotate(
-        distancia=Distance('geom', ultimo.geom)
-    ).order_by('distancia').first()
+    parada = Paradas.objects \
+        .filter(id_parada=parada_id) \
+        .annotate(dist_m=Distance('geom', veh.geom)) \
+        .first()
 
-    distancia_m = ultimo.geom.distance(parada.geom) * 111000  # aprox
-    velocidad = 30  # km/h
-    eta = distancia_m / (velocidad * 1000 / 60)
+    if not parada:
+        return Response({'error': 'Parada no encontrada'}, status=404)
+
+    distancia_m = parada.dist_m.m
+    velocidad_kmh  = 30.0
+    metros_por_min = velocidad_kmh * 1000 / 60
+    eta_minutos    = round(distancia_m / metros_por_min, 2)
 
     return Response({
-        'vehiculo_id': id,
-        'parada_objetivo': parada.nombre,
+        'vehiculo_id':      vehiculo_id,
+        'parada_objetivo':  parada.nombre,
         'distancia_metros': round(distancia_m, 2),
-        'eta_minutos': round(eta, 2)
+        'eta_minutos':      eta_minutos
     })
+
 
 @api_view(['GET'])
 def listar_rutas(request):
@@ -83,32 +90,16 @@ def paradas_de_ruta(request, id_ruta):
 def listar_vehiculos(request):
     data = []
     for v in Vehiculos.objects.all():
-        last = (
-            History.objects
-            .filter(id_vehiculo_id=v.id_vehiculo)
-            .order_by('-timestamp')
-            .first()
-        )
-        if last:
-            lat = last.geom.y
-            lon = last.geom.x
-            ts  = last.timestamp
-        else:
-            lat = v.geom.y
-            lon = v.geom.x
-            ts  = None
-
         data.append({
-            'id': v.id_vehiculo,
-            'placa': v.placa,
-            'tipo': v.tipo,
-            'estado': v.estado,
-            'routeId': v.id_ruta_id,
-            'lat': lat,
-            'lng': lon,
-            'timestamp': ts,
+            'id':        v.id_vehiculo,
+            'placa':     v.placa,
+            'tipo':      v.tipo,
+            'estado':    v.estado,
+            'routeId':   v.id_ruta_id,
+            'lat':       v.geom.y,    
+            'lng':       v.geom.x,
+            'timestamp': None,      
         })
-
     return Response(data)
 
 @api_view(['GET'])
